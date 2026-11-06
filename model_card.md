@@ -21,16 +21,16 @@ Prompts:
 
 ## 3. How the Model Works  
 
-Explain your scoring approach in simple language.  
+Think of it like a friend picking songs for you. You tell them four things: your favorite genre, the mood you're in, how energetic you want the music to be, and whether you like acoustic or more produced sounds. They go through every song and give it points:
 
-Prompts:  
+- **Right genre:** 2 points. This counts most, because genre is the most stable part of someone's taste.
+- **Right mood:** 1 point. Mood changes day to day, so it counts half as much.
+- **Close in energy:** up to 1.5 points. A song with exactly the energy you want gets the full 1.5, and it gets fewer points the further off it is.
+- **Right sound:** half a point if the song is acoustic when you like acoustic, or produced when you don't.
 
-- What features of each song are used (genre, energy, mood, etc.)  
-- What user preferences are considered  
-- How does the model turn those into a score  
-- What changes did you make from the starter logic  
+A perfect song scores 5. Once every song has a score, the songs are sorted from highest to lowest and you get the top five, along with the reasons each one earned its points.
 
-Avoid code here. Pretend you are explaining the idea to a friend who does not program.
+The starter code had no scoring at all and only returned placeholder results. I added this point system so the picks actually depend on the listener.
 
 ---
 

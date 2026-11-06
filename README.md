@@ -17,17 +17,51 @@ Replace this paragraph with your own summary of what your version does.
 
 ## How The System Works
 
-Explain your design in plain language.
+Real-world recommenders like Spotify and YouTube learn what you like from your behavior and from the songs themselves. They give each song a score for how well it fits you, then rank the songs and show you the best matches. My version is a simple content-based recommender. It scores each song by comparing it to the user's preferences and then recommends the top results. It prioritizes genre first, then mood and how close the song's energy is to what the user wants, with a small bonus for matching their acoustic preference.
 
-Some prompts to answer:
+**Song features:** `genre`, `mood`, `energy`, `acousticness`
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+**UserProfile features:** `favorite_genre`, `favorite_mood`, `target_energy`, `likes_acoustic`
 
-You can include a simple diagram or bullet list if helpful.
+### Algorithm Recipe
+
+For each song in the catalog, start at **0 points** and add:
+
+| Rule | Points | Reasoning |
+|---|---|---|
+| Song `genre` equals user's `favorite_genre` | **+2.0** | Genre reflects long-term, stable taste. |
+| Song `mood` equals user's `favorite_mood` | **+1.0** | Mood is situational, so it counts half as much as genre. |
+| Energy closeness | **up to +1.5**, computed as `1.5 × (1 − abs(song.energy − target_energy))` | Continuous signal that separates songs even when no labels match. |
+| Acoustic fit: `likes_acoustic` is True and `acousticness > 0.6`, **or** `likes_acoustic` is False and `acousticness ≤ 0.6` | **+0.5** | Small tiebreaker for the user's sound preference. |
+
+**Maximum score:** 5.0 points.
+
+**Ranking:** score every song, sort from highest to lowest score, and return the top `k` (default 5). Each recommendation includes a list of reasons, for example "genre match (+2.0)" or "energy close to target (+1.4)", so the user can see why it was picked.
+
+**Why these weights balance:** everything except genre adds up to 3.0 points (1.0 + 1.5 + 0.5), which is more than the 2.0 genre bonus. A song from another genre with the right mood, energy and acoustic feel can still beat a genre match whose energy is far off. Genre leads, but it can't override everything else.
+
+**Data flow:**
+
+```
+User profile + songs.csv
+        │
+        ▼
+score_song() for every song ──► (score, reasons)
+        │
+        ▼
+sort by score, highest first
+        │
+        ▼
+top k songs + explanations
+```
+
+### Expected Biases
+
+- **Genre over-prioritization:** genre is the largest single bonus, so the system might rank a mediocre song in the user's favorite genre above a great song that matches their mood and energy.
+- **Exact-match labels are brittle:** "indie pop" gets no genre credit for a "pop" fan, and "relaxed" gets no mood credit for a "chill" listener, even though they're close.
+- **Underrepresented genres and moods:** most genres and moods in `songs.csv` appear only once. Users whose favorites aren't in the catalog get recommendations based almost entirely on energy, and lofi/chill users have more songs to choose from than everyone else.
+- **Energy acts as the default tiebreaker:** when no labels match, energy decides the ranking, so the results lean toward songs with similar intensity rather than variety.
+- **No discovery:** the system only rewards similarity to what the user already likes, so it tends to keep users in a filter bubble.
 
 ---
 
@@ -68,15 +102,50 @@ You can add more tests in `tests/test_recommender.py`.
 
 ## Sample Recommendation Output
 
-Paste a sample of your recommender's output here as a text block so a reader can see what it produces:
+Output of `python src/main.py` for the default pop/happy profile:
 
 ```
-# e.g.:
-# User profile: genre=indie, mood=chill, energy=low
-# Recommendations:
-#   1. ...
-#   2. ...
-#   3. ...
+Loaded songs: 17
+
+============================================================
+                     TOP RECOMMENDATIONS
+============================================================
+ Profile: pop | happy | energy 0.80 | produced
+------------------------------------------------------------
+ #1  Sunrise City  by Neon Echo
+     Score: 4.97 / 5.00
+     Why:
+       - genre match (+2.0)
+       - mood match (+1.0)
+       - energy close to target (+1.47)
+       - produced (non-acoustic) sound fits preference (+0.5)
+------------------------------------------------------------
+ #2  Gym Hero  by Max Pulse
+     Score: 3.80 / 5.00
+     Why:
+       - genre match (+2.0)
+       - energy close to target (+1.30)
+       - produced (non-acoustic) sound fits preference (+0.5)
+------------------------------------------------------------
+ #3  Rooftop Lights  by Indigo Parade
+     Score: 2.94 / 5.00
+     Why:
+       - mood match (+1.0)
+       - energy close to target (+1.44)
+       - produced (non-acoustic) sound fits preference (+0.5)
+------------------------------------------------------------
+ #4  Concrete Crown  by Block Theory
+     Score: 1.97 / 5.00
+     Why:
+       - energy close to target (+1.47)
+       - produced (non-acoustic) sound fits preference (+0.5)
+------------------------------------------------------------
+ #5  Night Drive Loop  by Neon Echo
+     Score: 1.92 / 5.00
+     Why:
+       - energy close to target (+1.42)
+       - produced (non-acoustic) sound fits preference (+0.5)
+------------------------------------------------------------
 ```
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or demo video link here -->
